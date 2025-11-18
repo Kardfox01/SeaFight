@@ -1,0 +1,146 @@
+# ==================== CMake ====================
+**/CMakeCache.txt
+**/CMakeFiles/
+**/cmake_install.cmake
+**/install_manifest.txt
+**/CMakeLists.txt.user
+**/*.cmake
+!CMakeLists.txt
+!/cmake/*.cmake
+**/Makefile
+
+# ==================== Build Directories ====================
+**/build/
+**/_build/
+**/Build/
+**/out/
+**/bin/
+**/Bin/
+**/lib/
+**/Lib/
+**/x64/
+**/x86/
+**/Debug/
+**/Release/
+**/RelWithDebInfo/
+**/MinSizeRel/
+
+# ==================== Executables and Libraries ====================
+*.exe
+*.out
+*.app
+*.so
+*.so.*
+*.dylib
+*.dll
+*.a
+*.lib
+*.test
+
+# ==================== IDE and Editor Files ====================
+# Visual Studio
+**/.vs/
+**/*.vcxproj
+**/*.vcxproj.filters
+**/*.vcxproj.user
+**/*.sln
+**/*.suo
+**/*.sdf
+**/ipch/
+**/Debug/
+**/Release/
+
+# CLion
+**/.idea/
+**/cmake-build-*/
+**/*.iws
+**/*.iml
+
+# VS Code
+**/.vscode/
+**/*.code-workspace
+
+# Qt Creator
+**/*.pro.user
+**/*.pro.user.*
+
+# Eclipse
+**/.settings/
+**/.cproject
+**/.project
+
+# ==================== Compiled Object Files ====================
+*.o
+*.obj
+*.ko
+*.ilk
+*.pdb
+*.pch
+
+# ==================== Precompiled Headers ====================
+*.gch
+
+# ==================== Dependency Files ====================
+*.d
+
+# ==================== Package Management ====================
+**/conanbuildinfo.*
+**/conaninfo.txt
+**/conan.lock
+**/conanbuild/
+**/conan/
+
+# ==================== Documentation ====================
+**/docs/html/
+**/docs/latex/
+**/doc/html/
+**/doc/latex/
+**/Doxygen/
+
+# ==================== Temporary Files ====================
+*~
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+
+# ==================== System Files ====================
+.DS_Store
+Thumbs.db
+*.orig
+
+# ==================== Logs ====================
+*.log
+**/logs/
+
+# ==================== Coverage ====================
+**/gcov/
+**/*.gcda
+**/*.gcno
+**/*.gcov
+
+# ==================== Profiling ====================
+*.gmon
+*.prof
+
+# ==================== Package Files ====================
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+*.7z
+
+# ==================== SFML Resources (если нужно) ====================
+# Раскомментируй если используешь SFML и не хочешь коммитить ресурсы
+# **/resources/
+# **/assets/
+# *.ttf
+# *.png
+# *.jpg
+# *.wav
+# *.ogg
+
+# ==================== Project Specific ====================
+# Добавь здесь специфичные для твоего проекта пути
+# Например, сгенерированные файлы протоколов или конфиги
