@@ -30,9 +30,6 @@
 #endif
 
 
-//======================================================================
-// class jackwarp
-//----------------------------------------------------------------------
 /// \brief Базовый класс для TCP-соединений.
 ///
 /// Оборачивает низкоуровневый сокет и предоставляет базовые операции
@@ -41,19 +38,19 @@
 ///
 class jackwarp {
 protected:
-    SOCKET _socket = INVALID_SOCKET; ///< Основной сокет.
-    SOCKET _jack   = INVALID_SOCKET; ///< Активное соединение (accept/connect).
+    SOCKET _host = INVALID_SOCKET; ///< Основной сокет.
+    SOCKET _jack = INVALID_SOCKET; ///< Активное соединение (accept/connect).
 
 #ifdef _WIN32
     /// \brief Инициализация WinSock (выполняется один раз).
     static void initSystem() {
+        std::cout << "==> INIT WINSOCK" << std::endl;
         static bool initialized = false;
         if (!initialized) {
             WSADATA wsaData;
             if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
                 throw JackNetworkError("WSAStartup failed");
             initialized = true;
-            std::atexit([] { WSACleanup(); });
         }
     }
     static void closeSocket(SOCKET s) noexcept { closesocket(s); }
@@ -69,8 +66,8 @@ protected:
     /// \throws JackNetworkError при ошибке создания сокета.
     jackwarp() {
         initSystem();
-        _socket = socket(AF_INET, SOCK_STREAM, 0);
-        if (_socket == INVALID_SOCKET)
+        _host = socket(AF_INET, SOCK_STREAM, 0);
+        if (_host == INVALID_SOCKET)
             throw JackNetworkError("socket creation failed");
     }
 
@@ -79,19 +76,21 @@ public:
         return _jack != INVALID_SOCKET;
     }
 
-    bool connectedToServer() {
-        return _socket != INVALID_SOCKET;
+    bool connectedToHost() {
+        return _host != INVALID_SOCKET;
     }
 
-    void shutdownServer() noexcept {
-        if (_socket != INVALID_SOCKET) {
-            closeSocket(_socket);
-            _socket = INVALID_SOCKET;
+    void shutdownHost() noexcept {
+        if (_host != INVALID_SOCKET) {
+            std::cout << "==> CLOSING HOST" << std::endl;
+            closeSocket(_host);
+            _host = INVALID_SOCKET;
         }
     }
 
     void shutdownJack() noexcept {
         if (_jack != INVALID_SOCKET) {
+            std::cout << "==> CLOSING JACK" << std::endl;
             closeSocket(_jack);
             _jack = INVALID_SOCKET;
         }
@@ -99,8 +98,9 @@ public:
 
     /// \brief Закрывает все открытые сокеты.
     virtual ~jackwarp() noexcept {
-        shutdownServer();
+        shutdownHost();
         shutdownJack();
+        WSACleanup();
     }
 
     jackwarp(const jackwarp&) = delete;
@@ -115,6 +115,7 @@ public:
     jackwarp& operator<<(const std::string& data) {
         if (_jack == INVALID_SOCKET)
             throw JackNetworkError("no jack connected");
+
         size_t total = 0;
         while (total < data.size()) {
             int sent = send(_jack, data.data() + total, (int)(data.size() - total), 0);
@@ -122,6 +123,9 @@ public:
                 throw JackNetworkError("send failed");
             total += static_cast<size_t>(sent);
         }
+
+        std::cout << "==> SENDING " << data.size() << "s DATA" << std::endl;
+
         return *this;
     }
 
@@ -134,6 +138,8 @@ public:
     jackwarp& operator>>(std::string& out) {
         if (_jack == INVALID_SOCKET)
             throw JackNetworkError("no jack connected");
+
+        std::cout << "==> RECV " << out.size() << "s DATA" << std::endl;
 
         char buffer[1024];
         int bytes = recv(_jack, buffer, static_cast<int>(sizeof(buffer) - 1), 0);
@@ -151,9 +157,6 @@ public:
 };
 
 
-//======================================================================
-// class jackhost
-//----------------------------------------------------------------------
 /// \brief Серверная сторона TCP-соединения.
 ///
 /// Слушает указанный порт, принимает одно входящее соединение
@@ -172,14 +175,16 @@ public:
         host_address.sin_port = htons(port);
 
         if (bind(
-            _socket,
+            _host,
             reinterpret_cast<sockaddr*>(&host_address),
             static_cast<int>(sizeof(host_address))
         ) == SOCKET_ERROR)
             throw JackNetworkError("bind failed");
 
-        if (listen(_socket, SOMAXCONN) == SOCKET_ERROR)
+        if (listen(_host, SOMAXCONN) == SOCKET_ERROR)
             throw JackNetworkError("listen failed");
+
+        std::cout << "==> INIT HOST" << std::endl;
     }
 
     //------------------------------------------------------------------
@@ -192,13 +197,15 @@ public:
         socklen_t jack_address_size = static_cast<socklen_t>(sizeof(jack_address));
 
         _jack = accept(
-            _socket,
+            _host,
             reinterpret_cast<sockaddr*>(&jack_address),
             &jack_address_size
         );
 
         if (_jack == INVALID_SOCKET)
             throw JackNetworkError("accept failed");
+
+        std::cout << "==> JACK " << _jack << " CONNECTED" << std::endl;
     }
 
     //------------------------------------------------------------------
@@ -208,63 +215,63 @@ public:
     /// \throws JackNetworkError или JackAddressError при ошибках DNS/IP.
     std::string getIp() const {
         #if defined(_WIN32)
-    // Инициализация WinSock
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
-        return "";
+            // Инициализация WinSock
+            WSADATA wsaData;
+            if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+                return "";
 
-    ULONG flags = GAA_FLAG_INCLUDE_PREFIX;
-    ULONG family = AF_INET;
-    ULONG size = 16 * 1024;
-    std::vector<char> buffer(size);
+            ULONG flags = GAA_FLAG_INCLUDE_PREFIX;
+            ULONG family = AF_INET;
+            ULONG size = 16 * 1024;
+            std::vector<char> buffer(size);
 
-    IP_ADAPTER_ADDRESSES* addresses = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
-    if (GetAdaptersAddresses(family, flags, nullptr, addresses, &size) != ERROR_SUCCESS)
-        return "";
+            IP_ADAPTER_ADDRESSES* addresses = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
+            if (GetAdaptersAddresses(family, flags, nullptr, addresses, &size) != ERROR_SUCCESS)
+                return "";
 
-    for (auto* addr = addresses; addr != nullptr; addr = addr->Next) {
-        // Игнорируем неактивные и loopback интерфейсы
-        if (addr->OperStatus != IfOperStatusUp)
-            continue;
+            for (auto* addr = addresses; addr != nullptr; addr = addr->Next) {
+                // Игнорируем неактивные и loopback интерфейсы
+                if (addr->OperStatus != IfOperStatusUp)
+                    continue;
 
-        for (auto* unicast = addr->FirstUnicastAddress; unicast != nullptr; unicast = unicast->Next) {
-            SOCKADDR_IN* sa_in = reinterpret_cast<SOCKADDR_IN*>(unicast->Address.lpSockaddr);
-            char buf[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &(sa_in->sin_addr), buf, sizeof(buf));
+                for (auto* unicast = addr->FirstUnicastAddress; unicast != nullptr; unicast = unicast->Next) {
+                    SOCKADDR_IN* sa_in = reinterpret_cast<SOCKADDR_IN*>(unicast->Address.lpSockaddr);
+                    char buf[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &(sa_in->sin_addr), buf, sizeof(buf));
 
-            std::string ip = buf;
-            if (ip != "127.0.0.1")
-                return ip;
-        }
-    }
+                    std::string ip = buf;
+                    if (ip != "127.0.0.1")
+                        return ip;
+                }
+            }
 
-    return "";
-#else
-    struct ifaddrs* ifaddr = nullptr;
-    if (getifaddrs(&ifaddr) == -1)
-        return "";
+            return "";
+        #else
+            struct ifaddrs* ifaddr = nullptr;
+            if (getifaddrs(&ifaddr) == -1)
+                return "";
 
-    std::string result;
+            std::string result;
 
-    for (auto* iface = ifaddr; iface != nullptr; iface = iface->ifa_next) {
-        if (!iface->ifa_addr || iface->ifa_addr->sa_family != AF_INET)
-            continue;
+            for (auto* iface = ifaddr; iface != nullptr; iface = iface->ifa_next) {
+                if (!iface->ifa_addr || iface->ifa_addr->sa_family != AF_INET)
+                    continue;
 
-        // Пропускаем loopback
-        if (strcmp(iface->ifa_name, "lo") == 0)
-            continue;
+                // Пропускаем loopback
+                if (strcmp(iface->ifa_name, "lo") == 0)
+                    continue;
 
-        char buf[INET_ADDRSTRLEN];
-        void* addr = &((struct sockaddr_in*)iface->ifa_addr)->sin_addr;
+                char buf[INET_ADDRSTRLEN];
+                void* addr = &((struct sockaddr_in*)iface->ifa_addr)->sin_addr;
 
-        inet_ntop(AF_INET, addr, buf, sizeof(buf));
-        result = buf;
-        break;
-    }
+                inet_ntop(AF_INET, addr, buf, sizeof(buf));
+                result = buf;
+                break;
+            }
 
-    freeifaddrs(ifaddr);
-    return result;
-#endif
+            freeifaddrs(ifaddr);
+            return result;
+        #endif
     }
 
     //------------------------------------------------------------------
@@ -289,9 +296,6 @@ public:
 };
 
 
-//======================================================================
-// class jack
-//----------------------------------------------------------------------
 /// \brief Клиентская сторона TCP-соединения.
 ///
 /// Подключается к серверу (jackhost) по IP-адресу или invite-коду.
@@ -312,11 +316,12 @@ public:
         if (inet_pton(AF_INET, host.c_str(), &host_address.sin_addr) <= 0)
             throw JackAddressError("invalid host address");
 
-        if (connect(_socket, reinterpret_cast<sockaddr*>(&host_address),
+        if (connect(_host, reinterpret_cast<sockaddr*>(&host_address),
                     static_cast<int>(sizeof(host_address))) == SOCKET_ERROR)
             throw JackNetworkError("connect failed");
 
-        _jack = _socket;
+        _jack = _host;
+        std::cout << "==> INIT JACK" << std::endl;
     }
 
     //------------------------------------------------------------------

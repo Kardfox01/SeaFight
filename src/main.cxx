@@ -5,7 +5,7 @@
 
 
 int main() {
-    AOWindow::global({1280u, 720u}, "new game");
+    AOWindow::global("new game");
     Chief::global()
         .setSpace<EnterNameSpace>()
         .run();

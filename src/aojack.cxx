@@ -11,10 +11,11 @@ class AOJack {
 public:
     static jack& global(
         const std::string& host = "",
-        unsigned short port = 5555
+        unsigned short port     = 5555
     ) {
         static auto instance = std::make_unique<jack>(host, port);
-        return *instance;
+        if (instance)
+            return *instance;
     }
 };
 
@@ -28,6 +29,7 @@ public:
         unsigned short port = 5555
     ) {
         static auto instance = std::make_unique<jackhost>(port);
-        return *instance;
+        if (instance)
+            return *instance;
     }
 };

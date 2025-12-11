@@ -11,10 +11,14 @@ class AOWindow {
 
 public:
     static window_t& global(
-        const sf::Vector2u size = sf::Vector2u({800, 600}),
-        const std::string& title = "not implemented"
+        const std::string& title = "not implemented",
+        const sf::Vector2u size  = {1500, 900}
     ) {
-        static auto instance = std::make_unique<window_t>(sf::VideoMode(size), title);
+        static auto instance = std::make_unique<window_t>(
+            sf::VideoMode(size),
+            title,
+            sf::Style::Titlebar | sf::Style::Close
+        );
         return *instance;
     }
 };

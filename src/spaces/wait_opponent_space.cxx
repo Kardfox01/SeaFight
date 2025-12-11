@@ -11,66 +11,85 @@
 
 #include "../AOJack.cxx"
 #include "../widgets/input.cxx"
+#include "../widgets/label.cxx"
 #include "../protocol.cxx"
 
 #include "game_space.cxx"
 
 
 class WaitOpponentSpace: public Space {
-    sf::Font font;
-    sf::Text inviteText;
-    std::unique_ptr<Input> inviteInput;
+    Label inviteText;
+    Input inviteInput{"OR CONNECT: ", 8};
     std::string name;
+    bool wasError = false;
 
     std::unique_ptr<std::thread> waitOpponentThread;
 
 public:
-    explicit WaitOpponentSpace(std::string name):
-        inviteText(font),
-        name(name)
-    {
-        font.openFromFile("courier.ttf");
-
-        inviteText.setCharacterSize(48);
-        inviteText.setFillColor(sf::Color::White);
-
-        inviteInput = std::make_unique<Input>(
-            font,
-            "OR CONNECT: ",
-            8,
-            true,
-            [this]() { connectToOpponent(); }
-        );
-
+    explicit WaitOpponentSpace(std::string name): name(name) {
+        inviteInput.setOnEnterPressed([&] {
+            AOWindow::global().setTitle("connecting...");
+            connectToOpponent();
+        });
         showInvite();
         waitOpponentThread = std::make_unique<std::thread>(
             &WaitOpponentSpace::waitOpponent,
             this
         );
         waitOpponentThread->detach();
+
+        inviteInput.setContent("c0a8000d");
     }
 
     void handleEvent(const std::optional<sf::Event>& event) override {
-        inviteInput->handleEvent(event);
+        inviteInput.handleEvent(event);
     }
 
     void update(float dt) override {
         updateTitle(dt);
+        resetError(dt);
     }
 
     void draw() override {
-        AOWindow::global().draw(inviteText);
-        inviteInput->draw();
+        auto windowSize = AOWindow::global().getSize();
+        auto inviteBounds = inviteText.getLocalBounds();
+        auto inputBounds  = inviteInput.getLocalBounds();
+
+        inviteText.setPosition({
+            windowSize.x / 2.f - inviteBounds.size.x / 2.f,
+            windowSize.y / 2.f - inviteBounds.size.y / 2.f - inputBounds.size.y - 20
+        });
+
+        inviteInput.setPosition({
+            windowSize.x / 2.f - inputBounds.size.x / 2.f,
+            windowSize.y / 2.f - inputBounds.size.y / 2.f + 20
+        });
+
+        inviteText.draw();
+        inviteInput.draw();
     }
 
     ~WaitOpponentSpace() {
         auto& host = AOJackHost::global();
 
         if (!host.jackConnected())
-            host.shutdownServer();
+            host.shutdownHost();
     }
 
 private:
+    void resetError(float dt) {
+        static short d = 0;
+
+        if (d >= 6000) {
+            showInvite();
+            d = 0;
+            wasError = false;
+        }
+
+        if (wasError)
+            d += 1;
+    }
+
     void updateTitle(float dt) {
         static short i = -1, d = 50;
         static std::stringstream load("");
@@ -89,25 +108,19 @@ private:
 
     void showInvite() {
         std::stringstream inviteCode;
-        inviteCode << name << ", INVITE CODE: " << AOJackHost::global().getInvite();
-        inviteText.setString(inviteCode.str());
-
-        auto windowSize = AOWindow::global().getSize();
-        auto bounds = inviteText.getLocalBounds();
-
-        inviteText.setOrigin({bounds.size.x / 2.f, bounds.size.y / 2.f});
-
-        inviteText.setPosition({
-            windowSize.x / 2.f,
-            windowSize.y / 2.f - bounds.size.y * 2
-        });
+        try {
+            inviteCode << name << ", INVITE CODE: " << AOJackHost::global().getInvite();
+            inviteText.setString(inviteCode.str());
+        } catch (const JackAddressError& _) {
+            wasError = true;
+            inviteText.setString("LOST INTERNET");
+        }
     }
 
     void waitOpponent() {
         try {
             auto& host = AOJackHost::global();
             host.waitJack();
-
             if (!host.jackConnected()) return;
 
             std::string opponentName;
@@ -115,21 +128,30 @@ private:
             host << protocol::welcome(name);
 
             Chief::global()
-                .setSpace<GameSpace>(opponentName);
-        } catch (const JackNetworkError& error) {}
+                .setSpace<GameSpace>(opponentName, true);
+        } catch (const JackError& error) {
+            wasError = true;
+            inviteText.setString(error.what());
+        }
+
+        std::cout << "=>= EXIT FROM WAIT OPPONENT THREAD" << std::endl;
     }
 
     void connectToOpponent() {
         try {
-            auto& client = AOJack::global(jack::inviteToIp(inviteInput->getContent()));
+            auto& client = AOJack::global(
+                jack::inviteToIp(inviteInput.getContent())
+            );
             client << protocol::hello(name);
 
             std::string opponentName;
             client >> opponentName;
             Chief::global()
-                .setSpace<GameSpace>(opponentName);
+                .setSpace<GameSpace>(opponentName, false);
         } catch (const JackError& error) {
             inviteText.setString(error.what());
+            inviteInput.clear();
+            wasError = true;
         }
     }
 };

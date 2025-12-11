@@ -5,80 +5,67 @@
 #include <functional>
 #include "../space_chief/aowindow.cxx"
 
+
 class Input {
-    sf::Font& font;
+    sf::Font font;
     sf::Text inputText;
     std::string content;
     std::string prompt;
     size_t maxLength;
-    bool centered;
-    std::function<void()> onEnterPressed;
+    std::function<void()> onEnterPressed = nullptr;
 
 public:
     Input(
-        sf::Font& font,
         const std::string& prompt,
-        size_t maxLength = 5,
-        bool centered = false,
-        std::function<void()> onEnterPressed = nullptr
+        size_t maxLength = 5
     ):
-        font(font),
         inputText(font),
         prompt(prompt),
-        maxLength(maxLength),
-        centered(centered),
-        onEnterPressed(onEnterPressed)
+        maxLength(maxLength)
     {
+        font.openFromFile("courier.ttf");
         inputText.setFont(font);
         inputText.setCharacterSize(48);
         inputText.setFillColor(sf::Color::White);
         updateText();
-
-        if (centered) {
-            centerText();
-        }
     }
 
     void handleEvent(const std::optional<sf::Event>& event) {
-        if (const auto* key = event->getIf<sf::Event::KeyPressed>()) {
-            if (key->scancode == sf::Keyboard::Scancode::Backspace && !content.empty()) {
-                content.pop_back();
-                updateText();
-            } else if (key->scancode == sf::Keyboard::Scancode::Enter && !content.empty()) {
-                if (onEnterPressed) onEnterPressed();
-            } else {
-                if (content.size() >= maxLength) return;
-                auto keycode = key->scancode;
-                if (
-                    keycode >= sf::Keyboard::Scancode::A && keycode <= sf::Keyboard::Scancode::Z ||
-                    keycode >= sf::Keyboard::Scancode::Num1 && keycode <= sf::Keyboard::Scancode::Num0
-                ) {
-                    content.push_back(sf::Keyboard::getDescription(keycode).toAnsiString()[0]);
+        if (
+            auto* key = event->getIf<sf::Event::TextEntered>()
+        ) {
+            switch (key->unicode) {
+                case 8: // Backspace
+                    if (content.empty()) return;
+                    content.pop_back();
                     updateText();
-                }
+                    break;
+                case 13: // Enter
+                    if (
+                        onEnterPressed && !content.empty()
+                    )
+                        onEnterPressed();
+                    break;
+                default:
+                    if (
+                        content.size() == maxLength ||
+                        !std::isalnum(key->unicode)
+                    ) break;
+                    content.push_back(static_cast<char>(key->unicode));
+                    updateText();
             }
         }
     }
 
     void updateText() {
-        if (content.empty())
-            inputText.setString(prompt + "-");
-        else if (content.size() < maxLength)
-            inputText.setString(prompt + content + "-");
-        else
-            inputText.setString(prompt + content);
-
-        if (centered) {
-            centerText();
-        }
+        if (content.size() <= maxLength)
+            inputText.setString(
+                prompt + content + std::string(maxLength - content.size(), '-')
+            );
     }
 
     void setPosition(const sf::Vector2f& position) {
         inputText.setPosition(position);
-    }
-
-    void setOrigin(const sf::Vector2f& origin) {
-        inputText.setOrigin(origin);
     }
 
     void draw() const {
@@ -87,6 +74,16 @@ public:
 
     const std::string& getContent() const {
         return content;
+    }
+
+    void setContent(std::string&& newContent) {
+        content = newContent;
+        updateText();
+    }
+
+    void clear() {
+        content = "";
+        updateText();
     }
 
     bool isEmpty() const {
@@ -101,14 +98,5 @@ public:
         onEnterPressed = callback;
     }
 
-private:
-    void centerText() {
-        auto windowSize = AOWindow::global().getSize();
-        auto bounds = inputText.getLocalBounds();
-        inputText.setOrigin({bounds.size.x / 2.f, bounds.size.y / 2.0f});
-        inputText.setPosition({
-            windowSize.x / 2.f,
-            windowSize.y / 2.f
-        });
-    }
+    ~Input() = default;
 };

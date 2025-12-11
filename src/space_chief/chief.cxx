@@ -27,7 +27,7 @@ public:
         auto& window = AOWindow::global();
         sf::Clock clock;
 
-        while (window.isOpen()) {
+        while (window.isOpen() && current) {
             float dt = clock.restart().asSeconds();
 
             while (const auto event = window.pollEvent()) {
@@ -36,17 +36,13 @@ public:
                     break;
                 }
 
-                if (current)
-                    current->handleEvent(event);
+                current->handleEvent(event);
             }
 
-
-            if (current)
-                current->update(dt);
+            current->update(dt);
 
             window.clear();
-            if (current)
-                current->draw();
+            current->draw();
             window.display();
         }
     }
