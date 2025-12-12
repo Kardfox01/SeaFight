@@ -8,14 +8,17 @@
 class Label {
     sf::Font font;
     sf::Text text;
+    bool centered = false;
 
 public:
-    Label():
+    Label(
+        unsigned short characterSize = 48
+    ):
         text(font)
     {
         font.openFromFile("courier.ttf");
         text.setFont(font);
-        text.setCharacterSize(48);
+        text.setCharacterSize(characterSize);
         text.setFillColor(sf::Color::White);
     }
 
@@ -25,6 +28,15 @@ public:
 
     void setString(const std::string& newContent) {
         text.setString(newContent);
+        if (centered)
+            text.setOrigin({
+                text.getLocalBounds().size.x / 2,
+                0
+            });
+    }
+
+    void isCentered(bool flag) {
+        centered = flag;
     }
 
     void draw() const {

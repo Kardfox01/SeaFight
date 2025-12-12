@@ -9,12 +9,12 @@
 #include "../space_chief/space.cxx"
 #include "../space_chief/chief.cxx"
 
-#include "../AOJack.cxx"
+#include "../aojack.cxx"
 #include "../widgets/input.cxx"
 #include "../widgets/label.cxx"
 #include "../protocol.cxx"
 
-#include "game_space.cxx"
+#include "place_space.cxx"
 
 
 class WaitOpponentSpace: public Space {
@@ -38,7 +38,7 @@ public:
         );
         waitOpponentThread->detach();
 
-        inviteInput.setContent("c0a8000d");
+        inviteInput.setContent("c0a80014");
     }
 
     void handleEvent(const std::optional<sf::Event>& event) override {
@@ -128,7 +128,7 @@ private:
             host << protocol::welcome(name);
 
             Chief::global()
-                .setSpace<GameSpace>(opponentName, true);
+                .setSpace<PlaceSpace>(name, opponentName, true);
         } catch (const JackError& error) {
             wasError = true;
             inviteText.setString(error.what());
@@ -147,7 +147,7 @@ private:
             std::string opponentName;
             client >> opponentName;
             Chief::global()
-                .setSpace<GameSpace>(opponentName, false);
+                .setSpace<PlaceSpace>(name, opponentName, false);
         } catch (const JackError& error) {
             inviteText.setString(error.what());
             inviteInput.clear();

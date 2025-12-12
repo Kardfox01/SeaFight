@@ -19,7 +19,7 @@ public:
             Chief::global()
                 .setSpace<WaitOpponentSpace>(nameInput.getContent());
         });
-        nameInput.setContent("GEORGE");
+        nameInput.setContent("GEORG2");
     }
 
     void handleEvent(const std::optional<sf::Event>& event) override {

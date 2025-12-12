@@ -4,56 +4,97 @@
 #include <cctype>
 #include <sstream>
 #include <vector>
+#include <thread>
+#include <memory>
 
 #include "../space_chief/aowindow.cxx"
 #include "../space_chief/space.cxx"
 #include "../space_chief/chief.cxx"
 
-#include "../AOJack.cxx"
-#include "../widgets/input.cxx"
+#include "../aojack.cxx"
 #include "../widgets/label.cxx"
-#include "../widgets/fight/cell.cxx"
+#include "../widgets/fight/fields.cxx"
 #include "../protocol.cxx"
 
 
 class GameSpace: public Space {
-    Label opponentNameLabel;
+    Label opponentNameLabel, nameLabel;
+    std::vector<sf::Vertex> line;
+
+    Field field;
+    OpponentField opponentField;
 
     std::string opponentName;
-    jackwarp* opponentSocket = nullptr;
 
-    std::vector<std::vector<Cell>> ownField;
-    std::vector<std::vector<Cell>> opponentField;
+    jackwarp* opponentJack = nullptr;
+    std::thread listenThread;
+
+    bool wasError = true;
 
 public:
     explicit GameSpace(
+        jackwarp* opponentJack,
         std::string opponentName,
+        Field field,
         bool isHost
     ):
-        opponentName(opponentName)
+        opponentJack(opponentJack),
+        opponentName(opponentName),
+        field(field)
     {
         AOWindow::global().setTitle("fight");
+
+        nameLabel.isCentered(true);
+        nameLabel.setString(isHost? "MOVE" : "");
+
+        opponentNameLabel.isCentered(true);
         opponentNameLabel.setString(opponentName);
 
-        if (isHost)
-            opponentSocket = &AOJackHost::global();
-        else
-            opponentSocket = &AOJack::global();
-        
-        for (unsigned short i = 0; i < 10; ++i) {
-            ownField.emplace_back(std::vector<Cell>());
-            for (unsigned short j = 0; j < 10; ++j)
-                ownField[i].emplace_back(
-                    sf::Vector2f{i*50.f, j*50.f}
-                );
-        }
+        auto windowSize = AOWindow::global().getSize();
+
+        line = {
+            sf::Vertex { sf::Vector2f(windowSize.x / 2, 0) },
+            sf::Vertex { sf::Vector2f(windowSize.x / 2, windowSize.y) }
+        };
+
+        nameLabel.setPosition({
+            windowSize.x / 4,
+            25.f
+        });
+        opponentNameLabel.setPosition({
+            windowSize.x - windowSize.x / 4,
+            25.f
+        });
+
+        auto xPadding = (windowSize.x / 2 - 10*Cell::SIZE) / 2;
+        auto yPadding = nameLabel.getLocalBounds().size.y + 75.f;
+
+        opponentField = OpponentField(windowSize.x, xPadding, yPadding);
+
+        listenThread = std::thread(listen, this, isHost);
     }
 
     void handleEvent(const std::optional<sf::Event>& event) override {}
 
     void update(float dt) override {}
 
+    void listen(bool isHost) {
+        auto& socket = *opponentJack;
+
+        bool running = true;
+        std::string message;
+
+        while (running) {
+            *opponentJack >> message;
+            std::cout << message << std::endl;
+        }
+    }
+
     void draw() override {
+        field.draw();
+        opponentField.draw();
+        nameLabel.draw();
         opponentNameLabel.draw();
+        AOWindow::global().draw(line.data(), line.size(), sf::PrimitiveType::Lines);
     }
 };

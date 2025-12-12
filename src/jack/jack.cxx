@@ -24,6 +24,7 @@
     #include <arpa/inet.h>
     #include <unistd.h>
     #include <netdb.h>
+    #include <ifaddrs.h>
     using SOCKET = int;
     const int INVALID_SOCKET = -1;
     const int SOCKET_ERROR   = -1;
