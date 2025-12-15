@@ -71,7 +71,7 @@ public:
 
         opponentField = OpponentField(windowSize.x, xPadding, yPadding);
 
-        listenThread = std::thread(GameSpace::listen, this);
+        listenThread = std::thread([&] { listen(); });
     }
 
     void handleEvent(const std::optional<sf::Event>& event) override {}
