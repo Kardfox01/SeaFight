@@ -4,6 +4,7 @@
 #include "game_space.cxx"
 
 
+template<class jacktype>
 class PlaceSpace: public Space {
     std::string name;
     std::string opponentName;
@@ -13,19 +14,19 @@ class PlaceSpace: public Space {
     Label opponentNameLabel;
     Field field;
 
-    jackwarp* opponentJack;
+    jacktype& opponentJack;
 
     bool wasMistake = true;
 
 public:
     explicit PlaceSpace(
+        jacktype& opponentJack,
         std::string name,
-        std::string opponentName,
-        bool isHost
+        std::string opponentName
     ):
+        opponentJack(opponentJack),
         name(name),
-        opponentName(opponentName),
-        isHost(isHost)
+        opponentName(opponentName)
     {
         AOWindow::global().setTitle("place");
         nameLabel.isCentered(true);
@@ -102,7 +103,7 @@ public:
 
             if (!field.checkRemaind())
                 Chief::global()
-                    .setSpace<GameSpace>(opponentJack, opponentName, field, isHost);
+                    .setSpace<GameSpace<jacktype>>(opponentJack, opponentName, field);
         }
     }
 

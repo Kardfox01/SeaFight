@@ -65,7 +65,7 @@ protected:
     ///
     /// На Windows автоматически инициализирует WinSock.
     /// \throws JackNetworkError при ошибке создания сокета.
-    jackwarp() {
+    jackwarp(bool isHost): isHost(isHost) {
         initSystem();
         _host = socket(AF_INET, SOCK_STREAM, 0);
         if (_host == INVALID_SOCKET)
@@ -73,6 +73,8 @@ protected:
     }
 
 public:
+    const bool isHost;
+
     bool jackConnected() {
         return _jack != INVALID_SOCKET;
     }
@@ -101,7 +103,9 @@ public:
     virtual ~jackwarp() noexcept {
         shutdownHost();
         shutdownJack();
-        WSACleanup();
+        #ifdef WIN32
+            WSACleanup();
+        #endif
     }
 
     jackwarp(const jackwarp&) = delete;
@@ -170,7 +174,7 @@ public:
     ///
     /// \param port Порт для прослушивания.
     /// \throws JackNetworkError при ошибке bind() или listen().
-    explicit jackhost(unsigned short port) {
+    explicit jackhost(unsigned short port): jackwarp(true) {
         host_address.sin_family = AF_INET;
         host_address.sin_addr.s_addr = htonl(INADDR_ANY);
         host_address.sin_port = htons(port);
@@ -310,7 +314,7 @@ public:
     /// \param port Целевой порт.
     /// \throws JackAddressError при ошибке адресации.
     /// \throws JackNetworkError при ошибке подключения.
-    jack(const std::string& host, unsigned short port) {
+    jack(const std::string& host, unsigned short port): jackwarp(true) {
         host_address.sin_family = AF_INET;
         host_address.sin_port = htons(port);
 

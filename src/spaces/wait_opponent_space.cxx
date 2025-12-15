@@ -128,7 +128,7 @@ private:
             host << protocol::welcome(name);
 
             Chief::global()
-                .setSpace<PlaceSpace>(name, opponentName, true);
+                .setSpace<PlaceSpace<jackhost>>(host, name, opponentName);
         } catch (const JackError& error) {
             wasError = true;
             inviteText.setString(error.what());
@@ -147,7 +147,7 @@ private:
             std::string opponentName;
             client >> opponentName;
             Chief::global()
-                .setSpace<PlaceSpace>(name, opponentName, false);
+                .setSpace<PlaceSpace<jack>>(client, name, opponentName);
         } catch (const JackError& error) {
             inviteText.setString(error.what());
             inviteInput.clear();

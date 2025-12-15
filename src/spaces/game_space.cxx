@@ -17,6 +17,7 @@
 #include "../protocol.cxx"
 
 
+template<class jacktype>
 class GameSpace: public Space {
     Label opponentNameLabel, nameLabel;
     std::vector<sf::Vertex> line;
@@ -26,17 +27,16 @@ class GameSpace: public Space {
 
     std::string opponentName;
 
-    jackwarp* opponentJack = nullptr;
+    jacktype& opponentJack;
     std::thread listenThread;
 
     bool wasError = true;
 
 public:
     explicit GameSpace(
-        jackwarp* opponentJack,
+        jacktype& opponentJack,
         std::string opponentName,
-        Field field,
-        bool isHost
+        Field field
     ):
         opponentJack(opponentJack),
         opponentName(opponentName),
@@ -45,7 +45,7 @@ public:
         AOWindow::global().setTitle("fight");
 
         nameLabel.isCentered(true);
-        nameLabel.setString(isHost? "MOVE" : "");
+        nameLabel.setString(opponentJack.isHost? "MOVE" : "");
 
         opponentNameLabel.isCentered(true);
         opponentNameLabel.setString(opponentName);
@@ -71,21 +71,19 @@ public:
 
         opponentField = OpponentField(windowSize.x, xPadding, yPadding);
 
-        listenThread = std::thread(listen, this, isHost);
+        listenThread = std::thread(GameSpace::listen, this);
     }
 
     void handleEvent(const std::optional<sf::Event>& event) override {}
 
     void update(float dt) override {}
 
-    void listen(bool isHost) {
-        auto& socket = *opponentJack;
-
+    void listen() {
         bool running = true;
         std::string message;
 
         while (running) {
-            *opponentJack >> message;
+            opponentJack >> message;
             std::cout << message << std::endl;
         }
     }
